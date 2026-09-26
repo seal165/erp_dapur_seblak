@@ -1,15 +1,12 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-# --- PATH ABSOLUT UNTUK DATABASE & UPLOADS ---
+# --- DETEKSI LINGKUNGAN (VERCEL / LOKAL) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Di Vercel, direktori /tmp adalah satu-satunya tempat yang diizinkan untuk menulis file (Write/Create)
-# Jika aplikasi berjalan di Vercel, kita gunakan /tmp, jika di lokal gunakan folder biasa
 IF_VERCEL = os.environ.get('VERCEL')
 
 if IF_VERCEL:
@@ -28,12 +25,19 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 try:
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 except Exception as e:
-    print(f"Bypass folder creation: {e}")
+    print(f"Directory creation note: {e}")
 
 db = SQLAlchemy(app)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# -------------------------------------------------------------------
+# ROUTE KHUSUS UNTUK MENAMPILKAN GAMBAR (LOKAL & VERCEL FRIENDLY)
+# -------------------------------------------------------------------
+@app.route('/uploads/<filename>')
+def send_uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # --- FUNGSI PEMBERSIH FILE FOTO LAMA ---
 def hapus_file_foto(filename):
@@ -83,12 +87,11 @@ class ResepBoM(db.Model):
             return self.kuantitas * self.bahan_baku.harga_per_unit
         return 0.0
 
-# --- INELISASI TABEL DATABASE OTOMATIS ---
 with app.app_context():
     db.create_all()
 
 # -------------------------------------------------------------------
-# ROUTE CRUD: BAHAN BAKU
+# ROUTE BAHAN BAKU
 # -------------------------------------------------------------------
 
 @app.route('/')
@@ -152,7 +155,7 @@ def delete_bahan_baku(id):
     return redirect(url_for('kelola_bahan_baku'))
 
 # -------------------------------------------------------------------
-# ROUTE CRUD: PRODUK & RESEP (BoM)
+# ROUTE PRODUK & RESEP
 # -------------------------------------------------------------------
 
 @app.route('/produk', methods=['GET', 'POST'])
