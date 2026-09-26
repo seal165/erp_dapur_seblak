@@ -4,14 +4,32 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+
+# --- PATH ABSOLUT UNTUK DATABASE & UPLOADS ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Di Vercel, direktori /tmp adalah satu-satunya tempat yang diizinkan untuk menulis file (Write/Create)
+# Jika aplikasi berjalan di Vercel, kita gunakan /tmp, jika di lokal gunakan folder biasa
+IF_VERCEL = os.environ.get('VERCEL')
+
+if IF_VERCEL:
+    DB_PATH = '/tmp/database.db'
+    UPLOAD_FOLDER = '/tmp/uploads'
+else:
+    DB_PATH = os.path.join(BASE_DIR, 'instance', 'database.db')
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except Exception as e:
+    print(f"Bypass folder creation: {e}")
+
 db = SQLAlchemy(app)
 
 def allowed_file(filename):
@@ -22,7 +40,10 @@ def hapus_file_foto(filename):
     if filename:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if os.path.exists(filepath):
-            os.remove(filepath)
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
 
 # -------------------------------------------------------------------
 # MODEL DATABASE
@@ -62,6 +83,10 @@ class ResepBoM(db.Model):
             return self.kuantitas * self.bahan_baku.harga_per_unit
         return 0.0
 
+# --- INELISASI TABEL DATABASE OTOMATIS ---
+with app.app_context():
+    db.create_all()
+
 # -------------------------------------------------------------------
 # ROUTE CRUD: BAHAN BAKU
 # -------------------------------------------------------------------
@@ -82,7 +107,10 @@ def kelola_bahan_baku():
             file = request.files['gambar']
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                try:
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                except Exception:
+                    pass
         
         bahan_baru = BahanBaku(nama=nama, harga_per_unit=harga, uom=uom, gambar=filename)
         db.session.add(bahan_baru)
@@ -102,12 +130,14 @@ def edit_bahan_baku(id):
     if 'gambar' in request.files:
         file = request.files['gambar']
         if file and allowed_file(file.filename):
-            # Hapus foto lama jika ada foto baru yang di-upload
             hapus_file_foto(bahan.gambar)
             
             filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            bahan.gambar = filename
+            try:
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                bahan.gambar = filename
+            except Exception:
+                pass
 
     db.session.commit()
     return redirect(url_for('kelola_bahan_baku'))
@@ -115,7 +145,6 @@ def edit_bahan_baku(id):
 @app.route('/bahan-baku/delete/<int:id>', methods=['POST'])
 def delete_bahan_baku(id):
     bahan = BahanBaku.query.get_or_404(id)
-    # Hapus file foto dari folder saat data dihapus
     hapus_file_foto(bahan.gambar)
     
     db.session.delete(bahan)
@@ -137,7 +166,10 @@ def kelola_produk():
             file = request.files['gambar']
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                try:
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                except Exception:
+                    pass
 
         produk_baru = Produk(nama=nama, harga_jual=harga_jual, gambar=filename)
         db.session.add(produk_baru)
@@ -157,12 +189,14 @@ def edit_produk(id):
     if 'gambar' in request.files:
         file = request.files['gambar']
         if file and allowed_file(file.filename):
-            # Hapus foto lama jika ada foto baru yang di-upload
             hapus_file_foto(produk.gambar)
             
             filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            produk.gambar = filename
+            try:
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                produk.gambar = filename
+            except Exception:
+                pass
 
     db.session.commit()
     return redirect(url_for('kelola_produk'))
@@ -170,7 +204,6 @@ def edit_produk(id):
 @app.route('/produk/delete/<int:id>', methods=['POST'])
 def delete_produk(id):
     produk = Produk.query.get_or_404(id)
-    # Hapus file foto dari folder saat produk dihapus
     hapus_file_foto(produk.gambar)
     
     db.session.delete(produk)
@@ -195,6 +228,4 @@ def delete_resep(resep_id):
     return redirect(url_for('kelola_produk'))
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, port=5000)
