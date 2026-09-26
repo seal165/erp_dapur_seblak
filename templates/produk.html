@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Form Tambah Produk -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white fw-bold">Tambah Produk Jadi</div>
+            <div class="card-body">
+                <form action="{{ url_for('kelola_produk') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Produk</label>
+                        <input type="text" name="nama" class="form-control" placeholder="Contoh: Seblak Original" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Harga Jual (Rp)</label>
+                        <input type="number" name="harga_jual" class="form-control" placeholder="Contoh: 12000" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Foto Produk Jadi</label>
+                        <input type="file" name="gambar" class="form-control" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">+ Simpan Produk</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista Produk -->
+    <div class="col-md-8">
+        {% for p in produk_list %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    {% if p.gambar %}
+                    <img src="{{ url_for('static', filename='uploads/' + p.gambar) }}" class="rounded me-3" style="height: 50px; width: 50px; object-fit: cover;">
+                    {% endif %}
+                    <div>
+                        <h5 class="m-0 text-danger fw-bold">{{ p.nama }}</h5>
+                        <span class="badge bg-success">Can be Sold</span>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div>Harga Jual: <strong>Rp {{ "{:,.0f}".format(p.harga_jual) }}</strong></div>
+                    <div class="text-muted small">Modal (HPP): <strong class="text-primary">Rp {{ "{:,.0f}".format(p.total_modal) }}</strong></div>
+                    <div class="mt-1">
+                        <button class="btn btn-sm btn-warning py-0" data-bs-toggle="modal" data-bs-target="#editProdukModal{{ p.id }}">Edit Produk</button>
+                        <form action="{{ url_for('delete_produk', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus produk ini beserta resepnya?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0">Hapus</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Edit Produk -->
+            <div class="modal fade" id="editProdukModal{{ p.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Produk: {{ p.nama }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form action="{{ url_for('edit_produk', id=p.id) }}" method="POST" enctype="multipart/form-data">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Nama Produk</label>
+                                    <input type="text" name="nama" class="form-control" value="{{ p.nama }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Harga Jual (Rp)</label>
+                                    <input type="number" name="harga_jual" class="form-control" value="{{ p.harga_jual }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Ganti Foto (Opsional)</label>
+                                    <input type="file" name="gambar" class="form-control" accept="image/*">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <h6 class="fw-bold text-secondary">Komposisi Resep (Bill of Materials):</h6>
+                <table class="table table-sm table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Bahan Baku</th>
+                            <th>Kuantitas</th>
+                            <th>Harga Unit</th>
+                            <th>Subtotal</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in p.resep_list %}
+                        <tr>
+                            <td>
+                                {% if r.bahan_baku.gambar %}
+                                <img src="{{ url_for('static', filename='uploads/' + r.bahan_baku.gambar) }}" style="height: 30px; width: 30px; object-fit: cover;" class="me-1 rounded">
+                                {% endif %}
+                                {{ r.bahan_baku.nama }}
+                            </td>
+                            <td>{{ r.kuantitas }} {{ r.bahan_baku.uom }}</td>
+                            <td>Rp {{ "{:,.0f}".format(r.bahan_baku.harga_per_unit) }}</td>
+                            <td>Rp {{ "{:,.0f}".format(r.subtotal) }}</td>
+                            <td style="width: 50px;">
+                                <form action="{{ url_for('delete_resep', resep_id=r.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm btn-link text-danger p-0">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted small">Belum ada bahan baku di dalam resep ini.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <form action="{{ url_for('tambah_resep', produk_id=p.id) }}" method="POST" class="row g-2 mt-2 align-items-center">
+                    <div class="col-md-6">
+                        <select name="bahan_id" class="form-select form-select-sm" required>
+                            <option value="">-- Pilih Bahan Baku --</option>
+                            {% for b in bahan_list %}
+                            <option value="{{ b.id }}">{{ b.nama }} (Rp {{ "{:,.0f}".format(b.harga_per_unit) }}/{{ b.uom }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" step="0.1" name="kuantitas" class="form-control form-control-sm" placeholder="Kuantitas" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">+ Tambah Bahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">Belum ada produk. Tambahkan produk di form sebelah kiri!</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

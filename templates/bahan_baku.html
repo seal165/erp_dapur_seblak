@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Form Tambah Bahan Baku -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold">Tambah Bahan Baku</div>
+            <div class="card-body">
+                <form action="{{ url_for('kelola_bahan_baku') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Bahan Baku</label>
+                        <input type="text" name="nama" class="form-control" placeholder="Contoh: Kerupuk Mawar Mentah" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Harga Beli per Unit (Rp)</label>
+                        <input type="number" step="0.01" name="harga" class="form-control" placeholder="Contoh: 20" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Satuan (UoM)</label>
+                        <select name="uom" class="form-select" required>
+                            <option value="Gram (g)">Gram (g)</option>
+                            <option value="Pcs">Pcs / Biji</option>
+                            <option value="ml">Mili Liter (ml)</option>
+                            <option value="Set">Set</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Foto Bahan Baku</label>
+                        <input type="file" name="gambar" class="form-control" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100">+ Simpan Bahan Baku</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabel Bahan Baku -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold">Daftar Bahan Baku (Can be Purchased)</div>
+            <div class="card-body">
+                <table class="table table-striped align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Foto</th>
+                            <th>Nama Bahan</th>
+                            <th>Harga/Unit</th>
+                            <th>Satuan</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bahan_list %}
+                        <tr>
+                            <td style="width: 70px;">
+                                {% if b.gambar %}
+                                <img src="{{ url_for('static', filename='uploads/' + b.gambar) }}" class="img-thumbnail" style="height: 50px; width: 50px; object-fit: cover;">
+                                {% else %}
+                                <span class="text-muted small">No Image</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ b.nama }}</strong></td>
+                            <td>Rp {{ "{:,.0f}".format(b.harga_per_unit) }}</td>
+                            <td><span class="badge bg-secondary">{{ b.uom }}</span></td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editBahanModal{{ b.id }}">Edit</button>
+                                    <form action="{{ url_for('delete_bahan_baku', id=b.id) }}" method="POST" onsubmit="return confirm('Hapus bahan ini?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
+                                    </form>
+                                </div>
+
+                                <!-- Modal Edit Bahan -->
+                                <div class="modal fade" id="editBahanModal{{ b.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Edit Bahan: {{ b.nama }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ url_for('edit_bahan_baku', id=b.id) }}" method="POST" enctype="multipart/form-data">
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Nama Bahan Baku</label>
+                                                        <input type="text" name="nama" class="form-control" value="{{ b.nama }}" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Harga/Unit (Rp)</label>
+                                                        <input type="number" step="0.01" name="harga" class="form-control" value="{{ b.harga_per_unit }}" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Satuan (UoM)</label>
+                                                        <input type="text" name="uom" class="form-control" value="{{ b.uom }}" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Ganti Foto (Opsional)</label>
+                                                        <input type="file" name="gambar" class="form-control" accept="image/*">
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Belum ada bahan baku.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
